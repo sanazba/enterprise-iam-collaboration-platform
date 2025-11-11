@@ -1,0 +1,49 @@
+{
+  "name": "Employee Onboarding",
+  "nodes": [
+    // Node 1: Webhook Trigger (receives HTTP POST)
+    {
+      "name": "Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "path": "onboarding"
+    },
+    
+    // Node 2: Create Okta User
+    {
+      "name": "Create Okta User",
+      "type": "n8n-nodes-base.httpRequest",
+      "url": "https://{{OKTA_DOMAIN}}/api/v1/users",
+      "method": "POST",
+      "body": {
+        "firstName": "{{first_name}}",
+        "lastName": "{{last_name}}",
+        "email": "{{email}}"
+      }
+    },
+    
+    // Node 3: Create Google Workspace User
+    {
+      "name": "Create Google User",
+      "url": "https://admin.googleapis.com/admin/directory/v1/users"
+    },
+    
+    // Node 4: Create Slack User
+    {
+      "name": "Create Slack User",
+      "url": "https://slack.com/api/admin.users.invite"
+    },
+    
+    // Node 5: Send Notification
+    {
+      "name": "Send Notification",
+      "type": "slack",
+      "channel": "it-notifications"
+    },
+    
+    // Node 6: Return Success
+    {
+      "name": "Return Success",
+      "type": "respondToWebhook"
+    }
+  ]
+}
