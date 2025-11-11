@@ -1,49 +1,202 @@
 {
   "name": "Employee Onboarding",
   "nodes": [
-    // Node 1: Webhook Trigger (receives HTTP POST)
     {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "onboarding",
+        "responseMode": "responseNode"
+      },
+      "id": "webhook",
       "name": "Webhook Trigger",
       "type": "n8n-nodes-base.webhook",
-      "path": "onboarding"
+      "typeVersion": 1,
+      "position": [240, 300]
     },
-    
-    // Node 2: Create Okta User
     {
+      "parameters": {
+        "url": "=https://{{$env.OKTA_DOMAIN}}/api/v1/users",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "oktaApi",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "profile",
+              "value": "={{{\n  \"firstName\": $json.first_name,\n  \"lastName\": $json.last_name,\n  \"email\": $json.email,\n  \"login\": $json.email\n}}}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "create-okta",
       "name": "Create Okta User",
       "type": "n8n-nodes-base.httpRequest",
-      "url": "https://{{OKTA_DOMAIN}}/api/v1/users",
-      "method": "POST",
-      "body": {
-        "firstName": "{{first_name}}",
-        "lastName": "{{last_name}}",
-        "email": "{{email}}"
+      "typeVersion": 4,
+      "position": [460, 300],
+      "credentials": {
+        "oktaApi": {
+          "id": "1",
+          "name": "Okta API"
+        }
       }
     },
-    
-    // Node 3: Create Google Workspace User
     {
+      "parameters": {
+        "url": "https://admin.googleapis.com/admin/directory/v1/users",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googleApi",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "name",
+              "value": "={{{\n  \"givenName\": $json.first_name,\n  \"familyName\": $json.last_name\n}}}"
+            },
+            {
+              "name": "primaryEmail",
+              "value": "={{$json.email}}"
+            },
+            {
+              "name": "password",
+              "value": "TempPass123!"
+            }
+          ]
+        }
+      },
+      "id": "create-google",
       "name": "Create Google User",
-      "url": "https://admin.googleapis.com/admin/directory/v1/users"
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [680, 300],
+      "credentials": {
+        "googleApi": {
+          "id": "2",
+          "name": "Google API"
+        }
+      }
     },
-    
-    // Node 4: Create Slack User
     {
+      "parameters": {
+        "url": "https://slack.com/api/admin.users.invite",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "slackApi",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "email",
+              "value": "={{$json.email}}"
+            },
+            {
+              "name": "real_name",
+              "value": "={{$json.first_name}} {{$json.last_name}}"
+            }
+          ]
+        }
+      },
+      "id": "create-slack",
       "name": "Create Slack User",
-      "url": "https://slack.com/api/admin.users.invite"
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [900, 300],
+      "credentials": {
+        "slackApi": {
+          "id": "3",
+          "name": "Slack API"
+        }
+      }
     },
-    
-    // Node 5: Send Notification
     {
+      "parameters": {
+        "channel": "it-notifications",
+        "text": "=✅ New employee onboarded:\n• Name: {{$json.first_name}} {{$json.last_name}}\n• Email: {{$json.email}}\n• Department: {{$json.department}}"
+      },
+      "id": "notify",
       "name": "Send Notification",
-      "type": "slack",
-      "channel": "it-notifications"
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2,
+      "position": [1120, 300],
+      "credentials": {
+        "slackApi": {
+          "id": "3",
+          "name": "Slack API"
+        }
+      }
     },
-    
-    // Node 6: Return Success
     {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{{\n  \"success\": true,\n  \"message\": \"User created successfully\",\n  \"email\": $json.email\n}}}"
+      },
+      "id": "response",
       "name": "Return Success",
-      "type": "respondToWebhook"
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1340, 300]
     }
-  ]
+  ],
+  "connections": {
+    "Webhook Trigger": {
+      "main": [
+        [
+          {
+            "node": "Create Okta User",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Okta User": {
+      "main": [
+        [
+          {
+            "node": "Create Google User",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Google User": {
+      "main": [
+        [
+          {
+            "node": "Create Slack User",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Slack User": {
+      "main": [
+        [
+          {
+            "node": "Send Notification",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Notification": {
+      "main": [
+        [
+          {
+            "node": "Return Success",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {},
+  "staticData": null,
+  "tags": [],
+  "triggerCount": 0,
+  "updatedAt": "2024-11-07T00:00:00.000Z",
+  "versionId": "1"
 }

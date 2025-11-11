@@ -1,0 +1,107 @@
+{
+    "name": "Inactive User Detection",
+    "nodes": [
+      {
+        "parameters": {
+          "rule": {
+            "interval": [
+              {
+                "triggerAtHour": 2
+              }
+            ]
+          }
+        },
+        "id": "schedule",
+        "name": "Schedule (Daily 2 AM)",
+        "type": "n8n-nodes-base.scheduleTrigger",
+        "typeVersion": 1,
+        "position": [240, 300]
+      },
+      {
+        "parameters": {
+          "url": "=https://{{$env.OKTA_DOMAIN}}/api/v1/users",
+          "authentication": "predefinedCredentialType",
+          "nodeCredentialType": "oktaApi"
+        },
+        "id": "get-users",
+        "name": "Get All Okta Users",
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4,
+        "position": [460, 300],
+        "credentials": {
+          "oktaApi": {
+            "id": "1",
+            "name": "Okta API"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "jsCode": "// Find users inactive for more than 90 days\nconst users = $input.all();\nconst inactiveUsers = [];\nconst today = new Date();\nconst daysThreshold = 90;\n\nfor (const user of users) {\n  const lastLogin = new Date(user.json.lastLogin);\n  const daysSinceLogin = Math.floor((today - lastLogin) / (1000 * 60 * 60 * 24));\n  \n  if (daysSinceLogin > daysThreshold) {\n    inactiveUsers.push({\n      json: {\n        email: user.json.profile.email,\n        name: user.json.profile.firstName + ' ' + user.json.profile.lastName,\n        lastLogin: user.json.lastLogin,\n        daysSinceLogin: daysSinceLogin\n      }\n    });\n  }\n}\n\nreturn inactiveUsers;"
+        },
+        "id": "filter-inactive",
+        "name": "Filter Inactive Users",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [680, 300]
+      },
+      {
+        "parameters": {
+          "channel": "it-notifications",
+          "text": "=⚠️ Inactive users detected ({{$json.daysSinceLogin}} days):\n• {{$json.name}} ({{$json.email}})\n• Last login: {{$json.lastLogin}}"
+        },
+        "id": "notify",
+        "name": "Send Alert",
+        "type": "n8n-nodes-base.slack",
+        "typeVersion": 2,
+        "position": [900, 300],
+        "credentials": {
+          "slackApi": {
+            "id": "3",
+            "name": "Slack API"
+          }
+        }
+      }
+    ],
+    "connections": {
+      "Schedule (Daily 2 AM)": {
+        "main": [
+          [
+            {
+              "node": "Get All Okta Users",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Get All Okta Users": {
+        "main": [
+          [
+            {
+              "node": "Filter Inactive Users",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Filter Inactive Users": {
+        "main": [
+          [
+            {
+              "node": "Send Alert",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      }
+    },
+    "settings": {},
+    "staticData": null,
+    "tags": [],
+    "triggerCount": 0,
+    "updatedAt": "2024-11-07T00:00:00.000Z",
+    "versionId": "1"
+  }
