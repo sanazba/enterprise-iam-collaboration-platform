@@ -1,0 +1,71 @@
+#!/usr/bin/env python3
+"""Simple Slack API Connection Test"""
+
+import os
+import requests
+import sys
+
+def test_slack():
+    """Test Slack API connection"""
+    
+    # Get token from environment
+    token = os.getenv('SLACK_BOT_TOKEN', '')
+    
+    if not token or not token.startswith('xoxb-'):
+        print("❌ Error: Set SLACK_BOT_TOKEN environment variable")
+        print("   export SLACK_BOT_TOKEN='xoxb-your-token'")
+        return False
+    
+    print("Testing Slack connection\n")
+    
+    # Test API connection
+    url = 'https://slack.com/api/auth.test'
+    headers = {
+        'Authorization': f'Bearer {token}',
+        'Content-Type': 'application/json'
+    }
+    
+    try:
+        response = requests.get(url, headers=headers, timeout=10)
+        data = response.json()
+        
+        if data.get('ok'):
+            print(f"✅ Success! Connected to Slack")
+            print(f"✅ Workspace: {data.get('team', 'Unknown')}")
+            print(f"✅ Bot User: {data.get('user', 'Unknown')}")
+            
+            # Test users.list permission
+            users_url = 'https://slack.com/api/users.list?limit=1'
+            users_response = requests.get(users_url, headers=headers, timeout=10)
+            users_data = users_response.json()
+            
+            if users_data.get('ok'):
+                print(f"✅ Can read users")
+                print(f"\n🎉 Slack API is working!")
+                return True
+            else:
+                print(f"⚠️  Warning: Cannot read users")
+                print(f"   Error: {users_data.get('error', 'Unknown')}")
+                print(f"   Check bot token scopes")
+                return False
+        else:
+            print(f"❌ Authentication failed")
+            print(f"   Error: {data.get('error', 'Unknown')}")
+            return False
+            
+    except requests.exceptions.RequestException as e:
+        print(f"❌ Connection failed: {e}")
+        return False
+
+if __name__ == '__main__':
+    success = test_slack()
+    sys.exit(0 if success else 1)
+```
+
+---
+
+## File 12: scripts/requirements.txt
+```
+requests==2.31.0
+google-auth==2.23.0
+google-api-python-client==2.100.0
